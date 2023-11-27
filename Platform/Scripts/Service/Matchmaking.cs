@@ -48,7 +48,7 @@ namespace Pico.Platform
         /// </returns>
         public static Task ReportResultsInsecure(UInt64 roomId, Dictionary<string, int> data)
         {
-            KVPairArray kvarray = new KVPairArray((uint) data.Count);
+            /*KVPairArray kvarray = new KVPairArray((uint) data.Count);
             uint n = 0;
             foreach (var d in data)
             {
@@ -58,7 +58,8 @@ namespace Pico.Platform
                 n++;
             }
 
-            return new Task(CLIB.ppf_Matchmaking_ReportResultInsecure(roomId, kvarray.GetHandle(), kvarray.Size));
+            return new Task(CLIB.ppf_Matchmaking_ReportResultInsecure(roomId, kvarray.GetHandle(), kvarray.Size));*/
+            return null;
         }
 
         /// <summary>Gets the matchmaking statistics for the current user.

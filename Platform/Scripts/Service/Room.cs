@@ -139,7 +139,8 @@ namespace Pico.Platform
         /// </returns>
         public static Task<Room> UpdateDataStore(UInt64 roomId, Dictionary<string, string> data)
         {
-            KVPairArray kvarray = new KVPairArray((uint) data.Count);
+            return null;
+          /*  KVPairArray kvarray = new KVPairArray((uint) data.Count);
             uint n = 0;
             foreach (var d in data)
             {
@@ -149,7 +150,7 @@ namespace Pico.Platform
                 n++;
             }
 
-            return new Task<Room>(CLIB.ppf_Room_UpdateDataStore(roomId, kvarray.GetHandle(), kvarray.Size));
+            return new Task<Room>(CLIB.ppf_Room_UpdateDataStore(roomId, kvarray.GetHandle(), kvarray.Size));*/
         }
 
         /// <summary>Creates a new private room and joins it.
