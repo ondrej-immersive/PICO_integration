@@ -25,7 +25,7 @@ namespace Unity.XR.PXR
         {
             Debug.Log("ToBService MarkerInfo Callback 回调:" + var1);
             List<MarkerInfo> tmp = JsonToMarkerInfos(var1);
-            PXR_EnterpriseTools.Instance.QueueOnMainThread(() =>
+            PXR_EnterpriseTools.QueueOnMainThread(() =>
             {
                 if (mCallback != null)
                 {
@@ -69,10 +69,10 @@ namespace Unity.XR.PXR
                 model.dTimestamp = double.Parse(jsonData[i]["dTimestamp"].ToString());
             
                 IDictionary dictionaryReserve = jsonData[i]["reserve"] as IDictionary;
-                model.reserve = new int[dictionaryReserve.Count];
+                model.reserve = new float[dictionaryReserve.Count];
                 for (int j = 0; j < dictionaryReserve.Count; j++)
                 {
-                    model.reserve[j]=int.Parse(jsonData[i]["reserve"][j].ToString());
+                    model.reserve[j]=float.Parse(jsonData[i]["reserve"][j].ToString());
                 }
                 ModelList.Add(model);
             }

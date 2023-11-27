@@ -28,6 +28,7 @@ namespace Unity.XR.PXR
         public static List<PXR_OverLay> Instances = new List<PXR_OverLay>();
 
         private static int overlayID = 0;
+        [NonSerialized]
         public int overlayIndex;
         public int layerDepth;
         public int imageIndex = 0;
@@ -38,6 +39,8 @@ namespace Unity.XR.PXR
         public Camera xrRig;
 
         public Texture[] layerTextures = new Texture[2] { null, null };
+
+        public bool isPremultipliedAlpha = false;
         public bool isDynamic = false;
         public int[] overlayTextureIds = new int[2];
         public Matrix4x4[] mvMatrixs = new Matrix4x4[2];
@@ -53,12 +56,13 @@ namespace Unity.XR.PXR
         public Vector4 colorOffset = Vector4.zero;
 
         // Eac
-        public Vector3 offsetPosLeft = Vector3.one;
-        public Vector3 offsetPosRight = Vector3.one;
-        public Vector4 offsetRotLeft = Vector4.one;
-        public Vector4 offsetRotRight = Vector4.one;
-        public DegreeType degreeType = DegreeType.Eac360;
-        public float overlapFactor = 0;
+        public Vector3 offsetPosLeft = Vector3.zero;
+        public Vector3 offsetPosRight = Vector3.zero;
+        public Vector4 offsetRotLeft = new Vector4(0, 0, 0, 1);
+        public Vector4 offsetRotRight = new Vector4(0,0,0,1);
+        public EACModelType eacModelType = EACModelType.Eac360;
+        public float overlapFactor = 1.0f;
+        public ulong timestamp = 0;
 
         private Vector4 overlayLayerColorScaleDefault = Vector4.one;
         private Vector4 overlayLayerColorOffsetDefault = Vector4.zero;
@@ -119,6 +123,7 @@ namespace Unity.XR.PXR
         private static Material cubeM;
         private IntPtr leftPtr = IntPtr.Zero;
         private IntPtr rightPtr = IntPtr.Zero;
+        private static Material textureM;
 
 
         public int CompareTo(PXR_OverLay other)
@@ -235,6 +240,10 @@ namespace Unity.XR.PXR
             else
             {
                 overlayParam.faceCount = 1;
+                if (textureM == null)
+                    textureM = new Material(Shader.Find("PXR_SDK/PXR_Texture2DBlit"));
+
+
             }
 
             overlayParam.arraySize = 1;
@@ -490,7 +499,10 @@ namespace Unity.XR.PXR
                         }
                         else
                         {
-                            Graphics.Blit(layerTextures[i], renderTexture);
+                            textureM.mainTexture = texture;
+                            textureM.SetPass(0);
+                            textureM.SetInt("_premultiply", isPremultipliedAlpha ? 1 : 0);
+                            Graphics.Blit(layerTextures[i], renderTexture, textureM);
                         }
                         Graphics.CopyTexture(renderTexture, 0, 0, nativeTexture, f, 0);
                         RenderTexture.ReleaseTemporary(renderTexture);
@@ -594,6 +606,11 @@ namespace Unity.XR.PXR
 
             PXR_Plugin.Render.UPxr_DestroyLayerByRender(overlayIndex);
             ClearTexture();
+
+            if (isExternalAndroidSurface)
+            {
+                externalAndroidSurfaceObject = IntPtr.Zero;
+            }
         }
 
         private void ClearTexture()
@@ -625,12 +642,16 @@ namespace Unity.XR.PXR
             colorOffset = offset;
         }
 
-        public void SetEACOffsetPosAndRot(Vector3 leftPos, Vector3 rightPos, Vector4 leftRot, Vector4 rightRot, float factor)
+        public void SetEACOffsetPosAndRot(Vector3 leftPos, Vector3 rightPos, Vector4 leftRot, Vector4 rightRot)
         {
             offsetPosLeft = leftPos;
             offsetPosRight = rightPos;
             offsetRotLeft = leftRot;
             offsetRotRight = rightRot;
+        }
+
+        public void SetEACFactor(float factor)
+        {
             overlapFactor = factor;
         }
 
@@ -722,10 +743,12 @@ namespace Unity.XR.PXR
             Custom
         }
         
-        public enum DegreeType
+        public enum EACModelType
         {
             Eac360 = 0,
+            Eac360ViewPort = 1,
             Eac180 = 4,
+            Eac180ViewPort = 5,
         }
 
         public enum ColorForamt

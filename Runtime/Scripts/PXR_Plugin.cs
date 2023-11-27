@@ -351,6 +351,21 @@ namespace Unity.XR.PXR
         /// </summary>
         Remote = 2,
     }
+
+    /// <summary>
+    /// Video seethrough effect-related parameters.
+    /// </summary>
+    public enum PxrLayerEffect
+    {
+        Contrast = 0,
+        Saturation = 1,
+        Brightness = 2,
+        /// <summary>
+        /// Color temperature.
+        /// </summary>
+        Colortemp = 3,
+    }
+
     #endregion
 
     //deprecate
@@ -766,6 +781,11 @@ namespace Unity.XR.PXR
         public ushort enableSubsampled;
         public ushort lateLatchingDebug;
         public ushort enableStageMode;
+        public ushort enableSuperResolution;
+        public ushort normalSharpening;
+        public ushort qualitySharpening;
+        public ushort fixedFoveatedSharpening;
+        public ushort selfAdaptiveSharpening;
     }
 
     public enum RenderEvent
@@ -924,6 +944,18 @@ namespace Unity.XR.PXR
         PxrLayerFlagLayerPoseNotInTrackingSpace = 1 << 6,
         PxrLayerFlagHeadLocked = 1 << 7,
         PxrLayerFlagUseExternalImageIndex = 1 << 8,
+        PxrLayerFlagPresentationProtection = 1 << 9,
+        PxrLayerFlagSourceAlpha_1_0 = 1 << 10,
+        PxrLayerFlagUseFrameExtrapolation = 1 << 11,
+        PxrLayerFlagQuickSeethrough = 1 << 12,
+        PxrLayerFlagEnableNormalSuperSampling = 1 << 13,
+        PxrLayerFlagEnableQualitySuperSampling = 1 << 14,
+        PxrLayerFlagEnableNormalSharpening = 1 << 15,
+        PxrLayerFlagEnableQualitySharpening = 1 << 16,
+        PxrLayerFlagEnableFixedFoveatedSuperSampling = 1 << 17,
+        PxrLayerFlagEnableFixedFoveatedSharpening = 1 << 18,
+        PxrLayerFlagEnableSelfAdaptiveSharpening = 1 << 19,
+        PxrLayerFlagPremultipliedAlpha = 1 << 20,
     }
 
     public enum PxrControllerKeyMap
@@ -1321,6 +1353,21 @@ namespace Unity.XR.PXR
         Elbow,
         Shoulder
     }
+    public enum SharpeningMode
+    {
+        None,
+        Normal,
+        Quality
+    }
+    public enum SharpeningEnhance
+    {
+        None,
+        FixedFoveated,
+        SelfAdaptive,
+        Both
+    }
+ 
+
     [StructLayout(LayoutKind.Sequential)]
     public struct PxrControllerCapability
     {
@@ -1554,6 +1601,7 @@ namespace Unity.XR.PXR
         public PxrVector4f offsetRotRight;
         public UInt32 degreeType;
         public float overlapFactor;
+        public UInt64 timestamp;
     };
 
     [StructLayout(LayoutKind.Sequential)]
@@ -1619,7 +1667,7 @@ namespace Unity.XR.PXR
 
     public static class PXR_Plugin
     {
-        private const string PXR_SDK_Version = "2.3.2";
+        private const string PXR_SDK_Version = "2.4.3";
         private const string PXR_PLATFORM_DLL = "PxrPlatform";
         public const string PXR_API_DLL = "pxr_api";
         private static int PXR_API_Version = 0;
@@ -1627,6 +1675,13 @@ namespace Unity.XR.PXR
         #region DLLImports
         //MR
         //new
+        [DllImport(PXR_API_DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int Pxr_EnablePassthroughStyle(bool value);
+        [DllImport(PXR_API_DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int Pxr_SetPassthroughStyle(PxrLayerEffect type, float value, float duration);
+        [DllImport(PXR_API_DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int Pxr_SetPassthroughLUT(ref byte[] data, int width, int height, int row, int col);
+
         [DllImport(PXR_API_DLL, CallingConvention = CallingConvention.Cdecl)]
         private static extern PxrResult Pxr_CreateAnchorEntity(ref PxrAnchorEntityCreateInfo info, out ulong anchorHandle);
 
@@ -1751,7 +1806,7 @@ namespace Unity.XR.PXR
         public static extern int Pxr_CameraUpdateTexturesMainThread();
 
         [DllImport(PXR_PLATFORM_DLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void Pxr_SetFoveationLevelEnable(int enable);
+        public static extern bool Pxr_SetFoveationLevelEnable(int enable);
 
         [DllImport(PXR_PLATFORM_DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern bool Pxr_SetEyeFoveationLevelEnable(int enable);
@@ -1827,6 +1882,9 @@ namespace Unity.XR.PXR
 
         [DllImport(PXR_PLATFORM_DLL, CallingConvention = CallingConvention.Cdecl)]
         private static extern void Pxr_SetLoglevelChangedCallBack(LoglevelChangedCallBack callback);
+        
+        [DllImport(PXR_PLATFORM_DLL, CallingConvention = CallingConvention.Cdecl)]
+        private static extern void Pxr_EnablePremultipliedAlpha(bool enable);
 
         [DllImport(PXR_API_DLL, CallingConvention = CallingConvention.Cdecl)]
         private static extern void Pxr_SetGraphicOption(GraphicsAPI option);
@@ -1940,6 +1998,9 @@ namespace Unity.XR.PXR
         public static extern int Pxr_SetTrackingOrigin(PxrTrackingOrigin mode);
         [DllImport(PXR_API_DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern int Pxr_GetTrackingOrigin(ref PxrTrackingOrigin mode);
+
+        [DllImport(PXR_PLATFORM_DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void Pxr_UpdateContentProtectState(int state);
 
         //Tracking Sensor
         [DllImport(PXR_API_DLL, CallingConvention = CallingConvention.Cdecl)]
@@ -2668,6 +2729,7 @@ namespace Unity.XR.PXR
                 int num = 0;
 #if UNITY_ANDROID && !UNITY_EDITOR
                 num = Pxr_SetConfigInt(ConfigType.EnableCPT, data);
+                Pxr_UpdateContentProtectState(data);
 #endif
                 return num;
             }
@@ -3290,20 +3352,23 @@ namespace Unity.XR.PXR
         {
             private const string TAG = "[PXR_Plugin/Render]";
 
-            public static void UPxr_SetFoveationLevel(FoveationLevel level)
+            public static bool UPxr_SetFoveationLevel(FoveationLevel level)
             {
-                PLog.d(TAG, "UPxr_SetFoveationLevel() level:" + level);
+                bool result = true;
 #if UNITY_ANDROID && !UNITY_EDITOR
-                Pxr_SetFoveationLevelEnable((int)level);
+                result = Pxr_SetFoveationLevelEnable((int)level);
 #endif
+                PLog.i(TAG, "UPxr_SetFoveationLevel() level:" + level + " result:" + result);
+                return result;
             }
+
             public static bool UPxr_SetEyeFoveationLevel(FoveationLevel level)
             {
-                PLog.i(TAG, "UPxr_SetEyeFoveationLevel() level:" + level);
-                bool result = false;
+                bool result = true;
 #if UNITY_ANDROID && !UNITY_EDITOR
                 result = Pxr_SetEyeFoveationLevelEnable((int)level);
 #endif
+                PLog.i(TAG, "UPxr_SetEyeFoveationLevel() level:" + level + " result:" + result);
                 return result;
             }
 
@@ -3619,6 +3684,15 @@ namespace Unity.XR.PXR
                 Pxr_SetAppSpaceRotation(x, y, z, w);
 #endif
             }
+
+            public static void UPxr_EnablePremultipliedAlpha(bool enable)
+            {
+#if UNITY_ANDROID && !UNITY_EDITOR
+                Pxr_EnablePremultipliedAlpha(enable);
+#endif
+                PLog.i(TAG, "Pxr_EnablePremultipliedAlpha " + enable);
+            }
+
         }
 
         public static class Sensor
@@ -3818,12 +3892,12 @@ namespace Unity.XR.PXR
                 if (System.UPxr_GetAPIVersion() >= 0x200030C)
                 {
 #if UNITY_ANDROID && !UNITY_EDITOR
-                BodyTrackingAlgParam pxrBodyTrackingAlgParam = new BodyTrackingAlgParam();
-                pxrBodyTrackingAlgParam.BodyJointSet = mode;
-                return Pxr_SetBodyTrackingAlgParam(BodyTrackingAlgParamType.SWIFT_MODE, ref pxrBodyTrackingAlgParam);
+                    BodyTrackingAlgParam pxrBodyTrackingAlgParam = new BodyTrackingAlgParam();
+                    pxrBodyTrackingAlgParam.BodyJointSet = mode;
+                    return Pxr_SetBodyTrackingAlgParam(BodyTrackingAlgParamType.SWIFT_MODE, ref pxrBodyTrackingAlgParam);
 #endif
                 }
-                    return 0;
+                return 0;
             }
 
             public static int UPxr_SetBodyTrackingBoneLength(BodyTrackingBoneLength boneLength)
@@ -3831,13 +3905,13 @@ namespace Unity.XR.PXR
                 if (System.UPxr_GetAPIVersion() >= 0x200030C)
                 {
 #if UNITY_ANDROID && !UNITY_EDITOR
-                BodyTrackingAlgParam pxrBodyTrackingAlgParam = new BodyTrackingAlgParam();
-                pxrBodyTrackingAlgParam.BodyJointSet = 1;
-                pxrBodyTrackingAlgParam.BoneLength = boneLength;
-                return Pxr_SetBodyTrackingAlgParam(BodyTrackingAlgParamType.BONE_PARAM, ref pxrBodyTrackingAlgParam);
+                    BodyTrackingAlgParam pxrBodyTrackingAlgParam = new BodyTrackingAlgParam();
+                    pxrBodyTrackingAlgParam.BodyJointSet = 1;
+                    pxrBodyTrackingAlgParam.BoneLength = boneLength;
+                    return Pxr_SetBodyTrackingAlgParam(BodyTrackingAlgParamType.BONE_PARAM, ref pxrBodyTrackingAlgParam);
 #endif
                 }
-                    return 0;
+                return 0;
             }
 
             public static int UPxr_SetControllerVibrationEvent(UInt32 hand, int frequency, float strength, int time)
@@ -4294,6 +4368,11 @@ namespace Unity.XR.PXR
             private static extern int Pxr_GetEyeOpenness(ref float leftEyeOpenness, ref float rightEyeOpenness);
             [DllImport(PXR_PLATFORM_DLL, CallingConvention = CallingConvention.Cdecl)]
             private static extern int Pxr_GetEyePupilInfo(ref EyePupilInfo eyePupilPosition);
+            [DllImport(PXR_PLATFORM_DLL, CallingConvention = CallingConvention.Cdecl)]
+            private static extern int Pxr_GetPerEyePose(ref long timestamp, ref Posef leftEyePose, ref Posef rightPose);
+            [DllImport(PXR_PLATFORM_DLL, CallingConvention = CallingConvention.Cdecl)]
+            private static extern int Pxr_GetEyeBlink(ref long timestamp, ref bool isLeftBlink, ref bool isRightBlink);
+
 
             public static int UPxr_WantEyeTrackingService()
             {
@@ -4386,6 +4465,30 @@ namespace Unity.XR.PXR
                 {
 #if !UNITY_EDITOR && UNITY_ANDROID
                     val = Pxr_GetEyePupilInfo(ref eyePupilPosition);
+#endif
+                }
+                return val;
+            }
+
+            public static int UPxr_GetPerEyePose(ref long timestamp, ref Posef leftEyePose, ref Posef rightPose)
+            {
+                int val = 0;
+                if (System.UPxr_GetAPIVersion() >= 0x200030C)
+                {
+#if !UNITY_EDITOR && UNITY_ANDROID
+                    val = Pxr_GetPerEyePose(ref timestamp, ref leftEyePose, ref rightPose);
+#endif
+                }
+                return val;
+            }
+
+            public static int UPxr_GetEyeBlink(ref long timestamp, ref bool isLeftBlink, ref bool isRightBlink)
+            {
+                int val = 0;
+                if (System.UPxr_GetAPIVersion() >= 0x200030C)
+                {
+#if !UNITY_EDITOR && UNITY_ANDROID
+                    val = Pxr_GetEyeBlink(ref timestamp, ref isLeftBlink, ref isRightBlink);
 #endif
                 }
                 return val;
@@ -4486,6 +4589,34 @@ namespace Unity.XR.PXR
         public static class MixedReality
         {
             private const string TAG = "[PXR_Plugin/MixedReality]";
+
+            public static int UPxr_EnableVideoSeeThroughEffect(bool value)
+            {
+#if UNITY_ANDROID && !UNITY_EDITOR
+                return Pxr_EnablePassthroughStyle(value);
+#else
+                return -1;
+#endif
+            }
+
+            public static int UPxr_SetVideoSeeThroughEffect(PxrLayerEffect type, float value, float duration)
+            {
+#if UNITY_ANDROID && !UNITY_EDITOR
+                return Pxr_SetPassthroughStyle(type, value, duration);
+#else
+                return -1;
+#endif
+            }
+
+            public static int UPxr_SetVideoSeeThroughLUT(ref byte[] data, int width, int height, int row, int col)
+            {
+#if UNITY_ANDROID && !UNITY_EDITOR
+                return Pxr_SetPassthroughLUT(ref data, width, height, row, col);
+#else
+                return -1;
+#endif
+            }
+
 
             public static PxrResult UPxr_CreateAnchorEntity(ref PxrAnchorEntityCreateInfo info, out ulong anchorHandle)
             {

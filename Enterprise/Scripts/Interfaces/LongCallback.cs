@@ -14,8 +14,7 @@ namespace Unity.XR.PXR
 
         public void CallBack(long var1)
         {
-            Debug.Log("ToBService ILongCallback 回调:" + var1);
-            PXR_EnterpriseTools.Instance.QueueOnMainThread(() =>
+            PXR_EnterpriseTools.QueueOnMainThread(() =>
             {
                 if (mCallback != null)
                 {

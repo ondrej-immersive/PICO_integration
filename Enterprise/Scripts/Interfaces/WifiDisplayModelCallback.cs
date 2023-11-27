@@ -20,7 +20,7 @@ namespace Unity.XR.PXR
         {
             Debug.Log("ToBService WifiDisplayModelCallback 回调:" + var1);
             List<WifiDisplayModel> tmp = JsonToWifiDisplayModel(var1);
-            PXR_EnterpriseTools.Instance.QueueOnMainThread(() =>
+            PXR_EnterpriseTools.QueueOnMainThread(() =>
             {
                 if (mCallback != null)
                 {

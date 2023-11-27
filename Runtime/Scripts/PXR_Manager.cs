@@ -59,6 +59,10 @@ namespace Unity.XR.PXR
         [HideInInspector]
         public FaceTrackingMode trackingMode = FaceTrackingMode.None;
         [HideInInspector]
+        public SharpeningMode sharpeningMode = SharpeningMode.None;
+        [HideInInspector]
+        public SharpeningEnhance sharpeningEnhance = SharpeningEnhance.None;
+        [HideInInspector]
         public bool faceTracking;
         [HideInInspector]
         public bool lipsyncTracking;
@@ -129,6 +133,10 @@ namespace Unity.XR.PXR
 
         private bool isNeedResume = false;
 
+        //Super Resolution
+        [HideInInspector]
+        public bool enableSuperResolution;
+
         public Action<float> DisplayRefreshRateChanged;
 
         [HideInInspector]
@@ -191,25 +199,21 @@ namespace Unity.XR.PXR
             PXR_Plugin.System.UPxr_EnableFaceTracking(faceTracking);
             PXR_Plugin.System.UPxr_EnableLipSync(lipsyncTracking);
 
-            if (FoveatedRenderingMode.FixedFoveatedRendering == foveatedRenderingMode)
-            {
-                PXR_Plugin.Render.UPxr_SetFoveationLevel(foveationLevel);
-            }
-            else if (FoveatedRenderingMode.EyeTrackedFoveatedRendering == foveatedRenderingMode)
-            {
-                StartCoroutine("SetEyeFoveationLevel");
-            }
+            StartCoroutine("SetFoveationLevel");
 
-            int recommendedAntiAliasingLevel = PXR_Plugin.System.UPxr_GetConfigInt(ConfigType.AntiAliasingLevelRecommended);
-            if (useRecommendedAntiAliasingLevel && QualitySettings.antiAliasing != recommendedAntiAliasingLevel)
+            if (GraphicsSettings.renderPipelineAsset == null || QualitySettings.renderPipeline == null)
             {
-                QualitySettings.antiAliasing = recommendedAntiAliasingLevel;
-                List<XRDisplaySubsystem> displaySubsystems = new List<XRDisplaySubsystem>();
-                SubsystemManager.GetInstances(displaySubsystems);
-
-                if (displaySubsystems.Count > 0)
+                int recommendedAntiAliasingLevel = PXR_Plugin.System.UPxr_GetConfigInt(ConfigType.AntiAliasingLevelRecommended);
+                if (useRecommendedAntiAliasingLevel && QualitySettings.antiAliasing != recommendedAntiAliasingLevel)
                 {
-                    displaySubsystems[0].SetMSAALevel(recommendedAntiAliasingLevel);
+                    QualitySettings.antiAliasing = recommendedAntiAliasingLevel;
+                    List<XRDisplaySubsystem> displaySubsystems = new List<XRDisplaySubsystem>();
+                    SubsystemManager.GetInstances(displaySubsystems);
+
+                    if (displaySubsystems.Count > 0)
+                    {
+                        displaySubsystems[0].SetMSAALevel(recommendedAntiAliasingLevel);
+                    }
                 }
             }
 
@@ -226,20 +230,24 @@ namespace Unity.XR.PXR
             PXR_Plugin.System.UPxr_LogSdkApi("pico_msaa|" + QualitySettings.antiAliasing.ToString());
         }
 
-        bool setETFRResult = false;
-        IEnumerator SetEyeFoveationLevel()
+        IEnumerator SetFoveationLevel()
         {
             int num = 3;
-            while (num-- > 0)
+            bool result;
+            do
             {
-                if (setETFRResult)
+                if (FoveatedRenderingMode.EyeTrackedFoveatedRendering == foveatedRenderingMode)
                 {
-                    break;
+                    result = PXR_FoveationRendering.SetFoveationLevel(eyeFoveationLevel, true);
                 }
-                setETFRResult = PXR_Plugin.Render.UPxr_SetEyeFoveationLevel(eyeFoveationLevel);
-                PLog.i(TAG, "num = " + num + "setETFRResult = " + setETFRResult);
+                else
+                {
+                    result = PXR_FoveationRendering.SetFoveationLevel(foveationLevel, false);
+                }
+                PLog.i(TAG, "num = " + num + ", result = " + result);
+
                 yield return new WaitForSeconds(1);
-            }
+            } while (!result && num-- > 0);
         }
 
         void OnApplicationPause(bool pause)
@@ -750,8 +758,7 @@ namespace Unity.XR.PXR
 
                         if (eyeCamera[i].transform.parent == null)
                         {
-                            m_AppSpaceTransform.position = Vector3.zero;
-                            m_AppSpaceTransform.rotation = Quaternion.identity;
+                            m_AppSpaceTransform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
                         }
                         else
                         {
@@ -1068,8 +1075,12 @@ namespace Unity.XR.PXR
             camera.clearFlags = CameraClearFlags.Skybox;
             camera.stereoTargetEye = StereoTargetEyeMask.None;
             camera.transform.localScale = Vector3.one;
+#if UNITY_2021_3_OR_NEWER
+            camera.transform.SetLocalPositionAndRotation(Vector3.zero,Quaternion.identity);
+#else
             camera.transform.localPosition = Vector3.zero;
             camera.transform.localEulerAngles = Vector3.zero;
+#endif
             camera.depth = 9999;
             camera.gameObject.layer = 0;
             camera.orthographic = false;
@@ -1092,8 +1103,12 @@ namespace Unity.XR.PXR
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.stereoTargetEye = StereoTargetEyeMask.None;
             camera.transform.localScale = Vector3.one;
+#if UNITY_2021_3_OR_NEWER
+            camera.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
+#else
             camera.transform.localPosition = Vector3.zero;
             camera.transform.localEulerAngles = Vector3.zero;
+#endif
             camera.depth = 10000;
             camera.gameObject.layer = 0;
             camera.orthographic = false;

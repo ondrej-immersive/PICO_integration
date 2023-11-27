@@ -25,12 +25,16 @@ namespace Unity.XR.PXR
         /// <summary>
         /// Initializes the enterprise service for a specified object. Must be called before calling other enterprise APIs.
         /// </summary>
-        /// <param name="objectName">The name of the object to initialize the enterprise service for.</param>
-        public static void InitEnterpriseService()
+        /// <returns>Whether the enterprise service has been initialized:
+        /// * `true`: success
+        /// * `false`: failure
+        public static bool InitEnterpriseService()
         {
-            PXR_EnterprisePlugin.UPxr_InitEnterpriseService();
+            PXR_EnterpriseTools.Instance.StartUp();
+            bool result = PXR_EnterprisePlugin.UPxr_InitEnterpriseService();
             PXR_EnterprisePlugin.UPxr_InitSystem();
             PXR_EnterprisePlugin.UPxr_InitAudioDevice();
+            return result;
         }
 
         /// <summary>
@@ -497,6 +501,13 @@ namespace Unity.XR.PXR
         /// * `SFS_AUTOMATIC_IPD`: auto IPD switch (supported by PICO Neo3 series and PICO 4 Enterprise with system version 5.7.0 or later)
         /// * `SFS_QUICK_SEETHROUGH_MODE`: quick seethrough mode switch (supported by PICO Neo3 series and PICO 4 Enterprise with system version 5.7.0 or later)
         /// * `SFS_HIGN_REFERSH_MODE`: high refresh mode switch (supported by PICO Neo3 series and PICO 4 Enterprise with system version 5.7.0 or later)
+        /// * `SFS_SEETHROUGH_APP_KEEP_RUNNING`: set whether to keep the app running under the seethrough mode (supported by PICO Neo3 series and PICO 4 Enterprise with system version 5.8.0 or later)
+        /// * `SFS_OUTDOOR_TRACKING_ENHANCEMENT`: enhance outdoor position tracking (supported by PICO Neo3 series and PICO 4 Enterprise with system version 5.8.0 or later)
+        /// * `SFS_AUTOIPD_AUTO_COMFIRM`: quick auto-IPD (supported by PICO 4 Enterprise with system version 5.8.0 or later)
+        /// * `SFS_LAUNCH_AUTOIPD_IF_GLASSES_WEARED`: set whether to launch auto-IPD after wearing the headset (supported by PICO 4 Enterprise with system version 5.8.0 or later)
+        /// * `SFS_GESTURE_RECOGNITION_HOME_ENABLE`: Home gesture switch (supported by PICO Neo3 series and PICO 4 Enterprise with system version 5.8.0 or later) 
+        /// * `SFS_GESTURE_RECOGNITION_RESET_ENABLE`: enable/disable the Reset gesture (supported by PICO Neo3 series and PICO 4 Enterprise with system version 5.8.0 or later) 
+        /// * `SFS_AUTO_COPY_FILES_FROM_USB_DEVICE`: automatically import OTG resources (supported by PICO Neo3 series and PICO 4 Enterprise with system version 5.8.0 or later) 
         /// </param>
         /// <param name="switchEnum">Whether to switch the function on/off:
         /// * `S_ON`: switch on
@@ -668,13 +679,10 @@ namespace Unity.XR.PXR
         }
 
         /// <summary>
-        /// Sets an app as the launcher app.
+        /// Sets an app as the launcher app. Need to restart the device to make the setting work.
         /// </summary>
-        /// <param name="switchEnum">Switch. Enumerations:
-        /// * `S_ON`: set the app as the launcher app
-        /// * `S_OFF`: cancel setting the app as the launcher app
-        /// </param>
-        /// <param name="packageName">The app package name.</param>
+        /// <param name="switchEnum">(deprecated)</param>
+        /// <param name="packageName">The app's package name.</param>
         public static void SetAPPAsHome(SwitchEnum switchEnum, string packageName)
         {
             PXR_EnterprisePlugin.UPxr_SetAPPAsHome(switchEnum, packageName);
@@ -1333,6 +1341,13 @@ namespace Unity.XR.PXR
         /// * `SFS_AUTOMATIC_IPD`: auto IPD switch (supported by PICO Neo3 series and PICO 4 Enterprise with system version 5.7.0 or later)
         /// * `SFS_QUICK_SEETHROUGH_MODE`: quick seethrough mode switch (supported by PICO Neo3 series and PICO 4 Enterprise with system version 5.7.0 or later)
         /// * `SFS_HIGN_REFERSH_MODE`: high refresh mode switch (supported by PICO Neo3 series and PICO 4 Enterprise with system version 5.7.0 or later)
+        /// * `SFS_SEETHROUGH_APP_KEEP_RUNNING`: set whether to keep the app running under the seethrough mode (supported by PICO Neo3 series and PICO 4 Enterprise with system version 5.8.0 or later)
+        /// * `SFS_OUTDOOR_TRACKING_ENHANCEMENT`: enhance outdoor position tracking (supported by PICO Neo3 series and PICO 4 Enterprise with system version 5.8.0 or later)
+        /// * `SFS_AUTOIPD_AUTO_COMFIRM`: quick auto-IPD (supported by PICO 4 Enterprise with system version 5.8.0 or later)
+        /// * `SFS_LAUNCH_AUTOIPD_IF_GLASSES_WEARED`: set whether to launch auto-IPD after wearing the headset (supported by PICO 4 Enterprise with system version 5.8.0 or later)
+        /// * `SFS_GESTURE_RECOGNITION_HOME_ENABLE`: Home gesture switch (supported by PICO Neo3 series and PICO 4 Enterprise with system version 5.8.0 or later) 
+        /// * `SFS_GESTURE_RECOGNITION_RESET_ENABLE`: enable/disable the Reset gesture (supported by PICO Neo3 series and PICO 4 Enterprise with system version 5.8.0 or later) 
+        /// * `SFS_AUTO_COPY_FILES_FROM_USB_DEVICE`: automatically import OTG resources (supported by PICO Neo3 series and PICO 4 Enterprise with system version 5.8.0 or later) 
         /// </param>
         /// <param name="callback">The callback that returns the switch's status:
         /// * `0`: off
@@ -1781,13 +1796,15 @@ namespace Unity.XR.PXR
         }
 
         /// <summary>
-        /// Sets the device that outputs audio during screen casting.
-        /// @note Supported by PICO Neo3 Pro and PICO 4 Enterprise with system version 5.5.0 or later.
+        /// Sets the device that outputs audio during screen casting. 
+        /// @note
+        /// - Supported by PICO Neo3 Pro and PICO 4 Enterprise with system version 5.5.0 or later.
+        /// - This API is only for miracast.
         /// </summary>
         /// <param name="screencastAudioOutput">Specifies the device that outputs audio. Enumerations:
-        /// `AUDIO_SINK`: the HMD
-        /// `AUDIO_TARGET`: the receiver
-        /// `AUDIO_SINK_TARGET`: both the HMD and the receiver
+        /// * `AUDIO_SINK`: the HMD
+        /// * `AUDIO_TARGET`: the receiver
+        /// * `AUDIO_SINK_TARGET`: both the HMD and the receiver
         /// </param>
         /// <returns>
         /// * `0`: success
@@ -1800,13 +1817,15 @@ namespace Unity.XR.PXR
 
         /// <summary>
         /// Gets the device that outputs audio during screen casting.
-        /// @note Supported by PICO Neo3 Pro and PICO 4 Enterprise with system version 5.5.0 or later.
+        /// @note
+        /// - Supported by PICO Neo3 Pro and PICO 4 Enterprise with system version 5.5.0 or later.
+        /// - This API is only for miracast.
         /// </summary>
         /// <returns>
         /// Enumerations:
-        /// `AUDIO_SINK`: the HMD
-        /// `AUDIO_TARGET`: the receiver
-        /// `AUDIO_SINK_TARGET`: both the HMD and the receiver
+        /// * `AUDIO_SINK`: the HMD
+        /// * `AUDIO_TARGET`: the receiver
+        /// * `AUDIO_SINK_TARGET`: both the HMD and the receiver
         /// </returns>
         public static ScreencastAudioOutputEnum GetScreenCastAudioOutput()
         {
@@ -1827,8 +1846,8 @@ namespace Unity.XR.PXR
         /// * `CUSTOMIZE_SETTINGS_TAB_GENERAL_LOCKSCREEN`: the "Lock Screen" option on the "General" tab
         /// </param>
         /// <param name="switchEnum">Sets to display or hide the specified tab or option:
-        /// `S_ON`: display
-        /// `S_OFF`: hide
+        /// * `S_ON`: display
+        /// * `S_OFF`: hide
         /// </param>
         /// <returns>
         /// * `0`: success
@@ -1854,8 +1873,8 @@ namespace Unity.XR.PXR
         /// </param>
         /// <returns>
         /// The status of the specified tab or option:
-        /// `S_ON`: displayed
-        /// `S_OFF`: hidden
+        /// * `S_ON`: displayed
+        /// * `S_OFF`: hidden
         /// </returns>
         public static SwitchEnum UPxr_GetCustomizeSettingsTabStatus(CustomizeSettingsTabEnum customizeSettingsTabEnum)
         {
@@ -1866,8 +1885,8 @@ namespace Unity.XR.PXR
         /// Shuts down the PICO device when the USB plug is unplugged or the plug runs out of power.
         /// </summary>
         /// <param name="switchEnum">Determines whether to enable/disable this function:
-        /// `S_ON`: enable
-        /// `S_OFF`: disable
+        /// * `S_ON`: enable
+        /// * `S_OFF`: disable
         /// </param>
         public static void SetPowerOffWithUSBCable(SwitchEnum switchEnum)
         {
@@ -1931,6 +1950,7 @@ namespace Unity.XR.PXR
         {
             PXR_EnterprisePlugin.UPxr_SetIPD(ipd,callback);
         }
+        
         /// <summary>
         /// Gets the device configured for miracast.
         /// </summary>
@@ -1941,6 +1961,7 @@ namespace Unity.XR.PXR
         {
             return PXR_EnterprisePlugin.UPxr_GetAutoMiracastConfig();
         }
+        
         /// <summary>
         /// Sets screencast-related parameters.
         /// @note Supported by PICO Neo3 series and PICO 4 Enterprise with system version 5.7.0 or later.
@@ -1956,6 +1977,7 @@ namespace Unity.XR.PXR
         {
             return PXR_EnterprisePlugin.UPxr_SetPicoCastMediaFormat(mediaFormat);
         }
+        
         /// <summary>
         /// Gets the pose and ID of the marker.
         /// @note Supported by 6Dof devices.
@@ -1977,6 +1999,180 @@ namespace Unity.XR.PXR
         public static int SetMarkerInfoCallback(TrackingOriginModeFlags trackingMode,float cameraYOffset,Action<List<MarkerInfo>> markerInfos)
         {
             return PXR_EnterprisePlugin.UPxr_setMarkerInfoCallback(trackingMode,cameraYOffset,markerInfos);
+        }
+
+        /// <summary>
+        /// Open RGB camera.
+        /// </summary>
+        /// <returns>Whether the RGB camera has been opened:
+        /// * `true`: success
+        /// * `false`: failure
+        /// </returns>
+        public static bool OpenVSTCamera()
+        {
+            return PXR_EnterprisePlugin.UPxr_OpenVSTCamera();
+        }
+
+        /// <summary>
+        /// Close RGB camera.
+        /// </summary>
+        /// <returns>Whether the RGB camera has been closed:
+        /// * `true`: success
+        /// * `false`: failure
+        /// </returns>
+        public static bool CloseVSTCamera()
+        {
+            return PXR_EnterprisePlugin.UPxr_CloseVSTCamera();
+        }
+
+        /// <summary>
+        /// Get camera parameters(including intrinsics & extrinsics).
+        /// </summary>
+        /// <returns> RGBCameraParams including intrinsics and extrinsics.
+        /// </returns>
+        public static RGBCameraParams GetCameraParameters()
+        {
+            return PXR_EnterprisePlugin.UPxr_GetCameraParameters();
+        }
+
+        /// <summary>
+        /// Get current head tracking confidence.
+        /// </summary>
+        /// <returns>
+        /// * `0`: bad
+        /// * `1`: good
+        /// </returns>
+        public static int GetHeadTrackingConfidence()
+        {
+            return PXR_EnterprisePlugin.UPxr_GetHeadTrackingConfidence();
+        }
+
+        /// <summary>
+        /// Acquire RGB camera frame,distortion
+        /// </summary>
+        /// <param name="frame">[out]frame frame info</param>
+        /// <returns>
+        /// * `0`: success
+        /// * other: failure
+        /// </returns>
+        public static int AcquireVSTCameraFrame(out Frame frame)
+        {
+            return PXR_EnterprisePlugin.UPxr_AcquireVSTCameraFrame(out frame);
+        }
+
+        /// <summary>
+        /// Acquire RGB camera frame,anti-distortion
+        /// </summary>
+        /// <param name="width">[in]width desired frame width,should be less equal than 2328</param>
+        /// <param name="height">[in]height desired frame height, should be less equal than 1748</param>
+        /// <param name="frame">[out]frame frame info</param>
+        /// <returns>
+        /// * `0`: success
+        /// * other: failure
+        /// </returns>
+        public static int AcquireVSTCameraFrameAntiDistortion(int width, int height, out Frame frame)
+        {
+            return PXR_EnterprisePlugin.UPxr_AcquireVSTCameraFrameAntiDistortion(width, height, out frame);
+        }
+
+        /// <summary>
+        /// Gets the predicted display time.
+        /// <returns>The predicted display time.</returns>
+        public static double GetPredictedDisplayTime()
+        {
+            return PXR_EnterprisePlugin.UPxr_GetPredictedDisplayTime();
+        }
+
+        /// <summary>
+        /// Gets the predicted status of the sensor.
+        /// </summary>
+        /// <param name="predictTime">predict time.</param>
+        /// <returns>The predicted status of the sensor.</returns>
+        public static SensorState GetPredictedMainSensorState(double predictTime)
+        {
+            return PXR_EnterprisePlugin.UPxr_GetPredictedMainSensorState(predictTime);
+        }
+
+        /// <summary>
+        /// Directs the user to the floor-height-adjustment app to adjust the floor's height.
+        /// @note Supported by PICO Neo3 Pro, general PICO Neo3 devices activated as enterprise devices, and PICO 4 Enterprise.
+        /// </summary>
+        /// <returns>
+        /// * `0`: success
+        /// * `1`: failure
+        /// </returns>
+        public static int GotoSeeThroughFloorSetting()
+        {
+            return PXR_EnterprisePlugin.UPxr_gotoSeeThroughFloorSetting();
+        }
+
+        /// <summary>
+        /// Copies a file or a folder from the source path to the destination path.
+        /// @note Supported by PICO Neo3 Pro, general PICO Neo3 devices activated as enterprise devices, and PICO 4 Enterprise.
+        /// </summary>
+        /// <param name="srcPath">
+        /// The source path of the file or folder.
+        /// * For mobile storage devices, the prefix of the path is 'udisk://'. For example, the path of the Movie folder under the root directory should be passed as 'udisk://Movie'.
+        /// * For internal storage paths, directly specify the path under the root directory. For example, the path of the Picture folder under the root directory should be passed as 'Picture'.
+        /// </param>
+        /// <param name="dstPath">
+        /// The destination path that the file or folder is copied to.
+        /// * For mobile storage devices, the prefix of the path is 'udisk://'. For example, the path of the Movie folder under the root directory should be passed as 'udisk://Movie'.
+        /// * For internal storage paths, directly write the path under the root directory. For example, the path of the Picture folder under the root directory should be passed as 'Picture'.
+        /// </param>
+        /// <param name="callback">The result callback:
+        /// * `onCopyStart`: copy start callback
+        /// * `onCopyProgress(double process)`: copy progress callback, value range:[0.00, 1.00]
+        /// * `onCopyFinish(int errorCode)`: `0` (copy succeeded); `101` (USB flash disk is not connected); `103` (insufficient storage space in the target device); `104` (copy failed)
+        /// </param>
+        /// <returns>
+        /// * `0`: API call succeeded, wait for copy to start
+        /// * `101`: USB flash drive is not connected
+        /// * `102`: source file/folder does not exist
+        /// * `106`: null parameter
+        /// </returns>
+        public static int FileCopy(String srcPath, String dstPath, FileCopyCallback callback)
+        {
+            return PXR_EnterprisePlugin.UPxr_fileCopy(srcPath, dstPath, callback);
+        }
+
+        /// <summary>
+        /// Checks whether a map is being used.
+        /// @note Supported by PICO Neo3 Pro, general PICO Neo3 devices activated as enterprise devices, and PICO 4 Enterprise.
+        /// </summary>
+        /// <param name="path">The path of the map's zip file.</param>
+        /// <param name="callback">The result callback:
+        /// * `0`: success
+        /// * `1`: failure
+        /// * `101`: file does not exist
+        /// * `102`: failed to unzip the file
+        /// * `103`: file corruption
+        /// * `104`: position tracking is disabled
+        /// * `106`: failed to get the current map's information
+        /// * `107`: `path` parameter is null
+        /// </param>
+        public static void IsMapInEffect(String path, Action<int> callback)
+        {
+            PXR_EnterprisePlugin.UPxr_IsMapInEffect(path, callback);
+        }
+
+        /// <summary>
+        /// Imports a map.
+        /// @note Supported by PICO Neo3 Pro, general PICO Neo3 devices activated as enterprise devices, and PICO 4 Enterprise.
+        /// </summary>
+        /// <param name="path">The path of the map's zip file.</param>
+        /// <param name="callback">The result callback:
+        /// * `0`: success
+        /// * `1`: failure
+        /// * `101`: file does not exist
+        /// * `102`: failed to unzip the file
+        /// * `103`: file corruption
+        /// * `104`: position tracking is disabled
+        /// * `107`: `path` parameter is null
+        /// </param>
+        public static void ImportMapByPath(String path, Action<int> callback)
+        {
+            PXR_EnterprisePlugin.UPxr_ImportMapByPath(path, callback);
         }
     }
 }

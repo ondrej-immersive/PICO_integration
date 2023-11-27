@@ -63,12 +63,16 @@ public class PXR_Hand : MonoBehaviour
 
                 if (i == (int)HandJoint.JointWrist)
                 {
+#if UNITY_2021_3_OR_NEWER
+                    handJoints[i].SetLocalPositionAndRotation(handJointLocations.jointLocations[i].pose.Position.ToVector3(), handJointLocations.jointLocations[i].pose.Orientation.ToQuat());
+#else
                     handJoints[i].localPosition = handJointLocations.jointLocations[i].pose.Position.ToVector3();
                     handJoints[i].localRotation = handJointLocations.jointLocations[i].pose.Orientation.ToQuat();
+#endif
                 }
                 else
                 {
-                    UnityEngine.Pose parentPose = UnityEngine.Pose.identity;
+                    Pose parentPose = Pose.identity;
 
                     if (i == (int)HandJoint.JointPalm ||
                         i == (int)HandJoint.JointThumbMetacarpal ||
@@ -77,11 +81,11 @@ public class PXR_Hand : MonoBehaviour
                         i == (int)HandJoint.JointRingMetacarpal ||
                         i == (int)HandJoint.JointLittleMetacarpal)
                     {
-                        parentPose = new UnityEngine.Pose(handJointLocations.jointLocations[1].pose.Position.ToVector3(), handJointLocations.jointLocations[1].pose.Orientation.ToQuat());
+                        parentPose = new Pose(handJointLocations.jointLocations[1].pose.Position.ToVector3(), handJointLocations.jointLocations[1].pose.Orientation.ToQuat());
                     }
                     else
                     {
-                        parentPose = new UnityEngine.Pose(handJointLocations.jointLocations[i-1].pose.Position.ToVector3(), handJointLocations.jointLocations[i-1].pose.Orientation.ToQuat());
+                        parentPose = new Pose(handJointLocations.jointLocations[i-1].pose.Position.ToVector3(), handJointLocations.jointLocations[i-1].pose.Orientation.ToQuat());
                     }
                     
                     var inverseParentRotation = Quaternion.Inverse(parentPose.rotation);
@@ -111,8 +115,12 @@ public class PXR_Hand : MonoBehaviour
         if (RayValid)
         {
             rayPose.gameObject.SetActive(true);
+#if UNITY_2021_3_OR_NEWER
+            rayPose.SetLocalPositionAndRotation(RayPose.Position.ToVector3(), RayPose.Orientation.ToQuat());
+#else
             rayPose.localPosition = RayPose.Position.ToVector3();
             rayPose.localRotation = RayPose.Orientation.ToQuat();
+#endif
 
             if (defaultRay != null)
             {

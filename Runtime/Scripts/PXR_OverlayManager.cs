@@ -225,6 +225,11 @@ namespace Unity.XR.PXR
                                 PxrLayerSubmitFlags.PxrLayerFlagLayerPoseNotInTrackingSpace);
                         }
 
+                        if (compositeLayer.isPremultipliedAlpha)
+                        {
+                            layerSubmit2.header.layerFlags |= (UInt32)PxrLayerSubmitFlags.PxrLayerFlagPremultipliedAlpha;
+                        }
+
                         if (compositeLayer.useImageRect)
                         {
                             layerSubmit2.poseLeft.position.x += -0.5f + compositeLayer.dstRectLeft.x + 0.5f * Mathf.Min(compositeLayer.dstRectLeft.width, 1 - compositeLayer.dstRectLeft.x);
@@ -369,6 +374,11 @@ namespace Unity.XR.PXR
                                 PxrLayerSubmitFlags.PxrLayerFlagLayerPoseNotInTrackingSpace);
                         }
 
+                        if (compositeLayer.isPremultipliedAlpha)
+                        {
+                            layerSubmit2.header.layerFlags |= (UInt32)PxrLayerSubmitFlags.PxrLayerFlagPremultipliedAlpha;
+                        }
+
                         if (compositeLayer.modelScales[0].z != 0)
                         {
                             layerSubmit2.centralAngleLeft = compositeLayer.modelScales[0].x / compositeLayer.modelScales[0].z;
@@ -505,6 +515,11 @@ namespace Unity.XR.PXR
                         layerSubmit2.lowerVerticalAngleLeft = (compositeLayer.dstRectLeft.y - 0.5f) * Mathf.PI;
                         layerSubmit2.lowerVerticalAngleRight = (compositeLayer.dstRectRight.y - 0.5f) * Mathf.PI;
 
+                        if (compositeLayer.isPremultipliedAlpha)
+                        {
+                            layerSubmit2.header.layerFlags |= (UInt32)PxrLayerSubmitFlags.PxrLayerFlagPremultipliedAlpha;
+                        }
+
                         if (PXR_Plugin.Render.UPxr_SubmitLayerEquirect2(layerSubmit2))
                         {
                             PxrLayerEquirect layerSubmit = new PxrLayerEquirect();
@@ -564,6 +579,11 @@ namespace Unity.XR.PXR
                             layerSubmit.biasXRight = -compositeLayer.dstRectRight.x / compositeLayer.dstRectRight.width;
                             layerSubmit.biasYLeft = 1 + (compositeLayer.dstRectLeft.y - 1) / compositeLayer.dstRectLeft.height;
                             layerSubmit.biasYRight = 1 + (compositeLayer.dstRectRight.y - 1) / compositeLayer.dstRectRight.height;
+
+                            if (compositeLayer.isPremultipliedAlpha)
+                            {
+                                layerSubmit.header.layerFlags |= (UInt32)PxrLayerSubmitFlags.PxrLayerFlagPremultipliedAlpha;
+                            }
 
                             PXR_Plugin.Render.UPxr_SubmitLayerEquirect(layerSubmit);
                         }
@@ -638,6 +658,11 @@ namespace Unity.XR.PXR
                             layerSubmit2.header.layerFlags = (UInt32)(
                                 PxrLayerSubmitFlags.PxrLayerFlagUseExternalHeadPose |
                                 PxrLayerSubmitFlags.PxrLayerFlagLayerPoseNotInTrackingSpace);
+                        }
+
+                        if (compositeLayer.isPremultipliedAlpha)
+                        {
+                            layerSubmit2.header.layerFlags |= (UInt32)PxrLayerSubmitFlags.PxrLayerFlagPremultipliedAlpha;
                         }
 
                         PXR_Plugin.Render.UPxr_SubmitLayerCube2(layerSubmit2);
@@ -732,8 +757,14 @@ namespace Unity.XR.PXR
                         layerSubmit2.offsetRotRight.z = compositeLayer.offsetRotRight.z;
                         layerSubmit2.offsetRotRight.w = compositeLayer.offsetRotRight.w;
 
-                        layerSubmit2.degreeType = (uint)compositeLayer.degreeType;
+                        layerSubmit2.degreeType = (uint)compositeLayer.eacModelType;
                         layerSubmit2.overlapFactor = compositeLayer.overlapFactor;
+                        layerSubmit2.timestamp = compositeLayer.timestamp;
+
+                        if (compositeLayer.isPremultipliedAlpha)
+                        {
+                            layerSubmit2.header.layerFlags |= (UInt32)PxrLayerSubmitFlags.PxrLayerFlagPremultipliedAlpha;
+                        }
 
                         PXR_Plugin.Render.UPxr_SubmitLayerEac2(layerSubmit2);
                     }

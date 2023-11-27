@@ -306,15 +306,14 @@ namespace Unity.XR.PXR
         /// {
         ///     // Whether the data is valid.
         ///     public bool Computed { get; private set; }
-        ///
         ///     // The ray pose.
         ///     public Posef RayPose { get; private set; }
         ///     // Whether the ray was displayed.
         ///     public bool RayValid { get; private set; }
-        ///     // Whether the ray touched.
-        ///     public bool RayTouched { get; private set; }
-        ///     // The strength of ray touch.
-        ///     public float TouchStrengthRay { get; private set; }
+        ///     // Whether the ray pinched.
+        ///     public bool Pinch { get; private set; }
+        ///     // The strength of ray pinch.
+        ///     public float PinchStrength { get; private set; }
         /// ```
         /// </param>
         /// <returns>

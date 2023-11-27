@@ -18,11 +18,18 @@ using UnityEngine;
 namespace Unity.XR.PXR
 {
     /// <summary>
-    /// A callback function that notifies the change of input device.
+    /// A callback function that notifies the change of input source. Returns one of the following values indicating the current input source:
+    /// * `0`: HMD
+    /// * `1`: controllers
+    /// * `2`: hands (i.e., hand tracking)
     /// </summary>
     public delegate void InputDeviceChangedCallBack(int value);
     /// <summary>
     /// A callback function that notifies the change of seethrough state.
+    /// * `0`: no seethrough
+    /// * `1`: semi-transparent seethrough (e.g., the transition effect when entering seethrough in PICO Neo3 devices)
+    /// * `2`: boundary and quick seethrough ('boundary' means that there is only the seethourgh scene visible after leaving the boundary)
+    /// * `3`: background seethrough
     /// </summary>
     public delegate void SeethroughStateChangedCallBack(int value);
     /// <summary>

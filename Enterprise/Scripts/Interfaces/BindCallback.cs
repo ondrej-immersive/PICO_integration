@@ -16,9 +16,8 @@ namespace Unity.XR.PXR
         {
             Debug.Log("ToBService bindCallBack 回调:" + var1);
             PXR_EnterprisePlugin.GetServiceBinder();
-            PXR_EnterpriseTools.Instance.QueueOnMainThread(() =>
+            PXR_EnterpriseTools.QueueOnMainThread(() =>
             {
-                Debug.Log("ToBService bindCallBack 回调:11");
                 if (mCallback != null)
                 {
                     mCallback(var1);

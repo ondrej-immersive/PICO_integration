@@ -14,6 +14,7 @@ PICO Technology Co., Ltd.
 #endif
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.XR;
 
@@ -22,12 +23,50 @@ namespace Unity.XR.PXR
     public partial class PXR_EnterprisePlugin
     {
         private const string TAG = "[PXR_EnterprisePlugin]";
+        public const int MAX_SIZE = 12208032;
+
+        public static string token;
+        private static int curSize = 0;
+        private static bool camOpenned = false;
+
+        private static FrameItemExt antiDistortionFrameItemExt;
+        private static FrameItemExt distortionFrameItemExt;
+        private static bool initDistortionFrame;
+
+        [DllImport("libpxr_xrsdk_native", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int getHeadTrackingConfidence();
+
+        [DllImport("libpxr_xrsdk_native", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int openVSTCamera();
+
+        [DllImport("libpxr_xrsdk_native", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int closeVSTCamera();
+
+        [DllImport("libpxr_xrsdk_native", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int getHeadTrackingData(Int64 predictTime, ref SixDof data, int type);
+
+        [DllImport("libpxr_xrsdk_native", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int acquireVSTCameraFrame(ref FrameItemExt frame);
+
+        [DllImport("libpxr_xrsdk_native", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int acquireVSTCameraFrameAntiDistortion(string token, Int32 width, Int32 height, ref FrameItemExt frame);
+
+        [DllImport("libpxr_xrsdk_native", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int getCameraParameters(string token, out RGBCameraParams rgb_Camera_Params);
+
+        [DllImport("pxr_api", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int Pxr_GetPredictedDisplayTime(ref double predictedDisplayTime);
+
+        [DllImport("pxr_api", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int Pxr_GetPredictedMainSensorState2(double predictTimeMs, ref PxrSensorState2 sensorState, ref int sensorFrameIndex);
+
 #if PICO_PLATFORM
             private static AndroidJavaClass unityPlayer;
             private static AndroidJavaObject currentActivity;
             private static AndroidJavaObject tobHelper;
             private static AndroidJavaClass tobHelperClass;
             private static AndroidJavaObject IToBService;
+            private static AndroidJavaClass BAuthLib;
 #endif
 
         public static Action<bool> BoolCallback;
@@ -43,16 +82,18 @@ namespace Unity.XR.PXR
             return enumjo;
         }
         
-        public static void UPxr_InitEnterpriseService()
+        public static bool UPxr_InitEnterpriseService()
         {
 #if PICO_PLATFORM
                 tobHelperClass = new AndroidJavaClass("com.picoxr.tobservice.ToBServiceUtils");
                 tobHelper = tobHelperClass.CallStatic<AndroidJavaObject>("getInstance");
                 unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
                 currentActivity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity");
+                BAuthLib = new AndroidJavaClass("com.pvr.tobauthlib.AuthCheckServer");
 #endif
+            return UPxr_GetToken();
         }
-        
+
         public static void UPxr_SetBindCallBack(BindCallback mBoolCallback)
         {
 #if PICO_PLATFORM
@@ -134,8 +175,8 @@ namespace Unity.XR.PXR
         public static void UPxr_PropertySetHomeKeyAll(HomeEventEnum eventEnum, HomeFunctionEnum function, int timesetup, string pkg, string className, Action<bool> callback)
         {
 #if PICO_PLATFORM
-              
-                tobHelper.Call("pbsPropertySetHomeKeyAll", GetEnumType(eventEnum), GetEnumType(function), timesetup, pkg, className, new BoolCallback(callback));
+            tobHelper.Call("pbsPropertySetHomeKeyAll", GetEnumType(eventEnum), GetEnumType(function), timesetup, pkg,
+                className, new BoolCallback(callback));
 #endif
         }
 
@@ -477,7 +518,7 @@ namespace Unity.XR.PXR
         public static void UPxr_SetWDJsonCallback(Action<string> callback)
         {
 #if PICO_PLATFORM
-                tobHelper.Call("pbsSetWDJsonCallback", new StringCallback(callback));
+            tobHelper.Call("pbsSetWDJsonCallback", new StringCallback(callback));
 #endif
         }
 
@@ -531,8 +572,7 @@ namespace Unity.XR.PXR
         public static void UPxr_ExportMaps(Action<bool> callback)
         {
 #if PICO_PLATFORM
-            
-                tobHelper.Call("pbsExportMaps", new BoolCallback(callback),0);
+            tobHelper.Call("pbsExportMaps", new BoolCallback(callback), 0);
 #endif
         }
 
@@ -901,8 +941,8 @@ namespace Unity.XR.PXR
         public static void UPxr_GetSwitchSystemFunctionStatus(SystemFunctionSwitchEnum systemFunction, Action<int> callback)
         {
 #if PICO_PLATFORM
-            
-                tobHelper.Call("pbsGetSwitchSystemFunctionStatus", GetEnumType(systemFunction),new IntCallback(callback),0);
+            tobHelper.Call("pbsGetSwitchSystemFunctionStatus", GetEnumType(systemFunction), new IntCallback(callback),
+                0);
 #endif
         }
 
@@ -938,8 +978,7 @@ namespace Unity.XR.PXR
         {
             int value = 0;
 #if PICO_PLATFORM
-            
-                value = tobHelper.Call<int>("pbsPicoCastInit",new IntCallback(callback),0);
+            value = tobHelper.Call<int>("pbsPicoCastInit", new IntCallback(callback), 0);
 #endif
             return value;
         }
@@ -1026,7 +1065,7 @@ namespace Unity.XR.PXR
                         value = PICOCastOptionValueEnum.OPTION_VALUE_RESOLUTION_HIGH;
                         break;
                     case 1:
-                        value = PICOCastOptionValueEnum.OPTION_VALUE_RESOLUTION_MIDDL;
+                        value = PICOCastOptionValueEnum.OPTION_VALUE_RESOLUTION_MIDDLE;
                         break;
                     case 2:
                         value = PICOCastOptionValueEnum.OPTION_VALUE_RESOLUTION_AUTO;
@@ -1105,7 +1144,7 @@ namespace Unity.XR.PXR
         {
             int num = 0;
 #if PICO_PLATFORM
-            num = IToBService.Call<int>("pbsSetSystemCountryCode",countryCode,new IntCallback(callback),0);
+            num = tobHelper.Call<int>("pbsSetSystemCountryCode",countryCode,new IntCallback(callback),0);
 #endif
             return num;
         }
@@ -1338,6 +1377,310 @@ namespace Unity.XR.PXR
             value = tobHelper.Call<int>("setMarkerInfoCallback",new MarkerInfoCallback(trackingMode,cameraYOffset,mediaFormat));
 #endif
             return value;
+        }
+
+
+        private static bool UPxr_GetToken()
+        {
+            PLog.i(TAG, "GetToken Start");
+#if PICO_PLATFORM
+            token = BAuthLib.CallStatic<string>("featureAuthByToken", currentActivity, "getCameraInfo");
+#endif
+            if (string.IsNullOrEmpty(token))
+            {
+                PLog.e(TAG, "Failed to obtain token, camera data cannot be obtained!");
+                return false;
+            }
+            PLog.i(TAG, "GetToken End token :" + token);
+            return true;
+        }
+
+        public static int UPxr_GetHeadTrackingConfidence()
+        {
+            PLog.d(TAG, "GetHeadTrackingConfidence Start");
+            int result = -1;
+#if PICO_PLATFORM
+            result = getHeadTrackingConfidence();
+#endif
+            PLog.d(TAG, "GetToken End result :" + result);
+
+            return result;
+        }
+
+        public static bool UPxr_OpenVSTCamera()
+        {
+            PLog.d(TAG, "OpenVSTCamera Start");
+            if (camOpenned)
+            {
+                PLog.d(TAG, "Camera has Openned!");
+                return true;
+            }
+
+            int result = -1;
+#if PICO_PLATFORM
+            result = openVSTCamera();
+#endif
+            camOpenned = result == 0;
+            PLog.d(TAG, "OpenVSTCamera End result :" + result + ", camOpenned : " + camOpenned);
+            return result == 0;
+        }
+
+        public static bool UPxr_CloseVSTCamera()
+        {
+            PLog.d(TAG, "CloseVSTCamera Start");
+            if (!camOpenned)
+            {
+                PLog.d(TAG, "Camera has Closed!");
+                return true;
+            }
+
+            int result = -1;
+#if PICO_PLATFORM
+            result = closeVSTCamera();
+#endif
+            camOpenned = !(result == 0);
+            PLog.d(TAG, "CloseVSTCamera End result :" + result + ", camOpenned : " + camOpenned);
+            return result == 0;
+        }
+
+        public static int UPxr_GetHeadTrackingData(Int64 predictTime, ref SixDof data, int type)
+        {
+            PLog.d(TAG, "GetHeadTrackingData Start");
+            int result = -1;
+#if PICO_PLATFORM
+            result = getHeadTrackingData(predictTime, ref data, type);
+#endif
+            PLog.d(TAG, "GetHeadTrackingData End result :" + result);
+
+            return result;
+        }
+
+        public static int UPxr_AcquireVSTCameraFrame(out Frame frame)
+        {
+            PLog.d(TAG, "AcquireVSTCameraFrame Start");
+            frame = new Frame();
+            if (string.IsNullOrEmpty(token))
+            {
+                PLog.e(TAG, "Failed to obtain token, camera data cannot be obtained!");
+                return -1;
+            }
+
+            if (!camOpenned)
+            {
+                PLog.e(TAG, "Failed to obtain data due to camera not being turned on!");
+                return -1;
+            }
+
+            InitDistortionFrame();
+            int result = -1;
+#if PICO_PLATFORM
+            result = acquireVSTCameraFrame(ref distortionFrameItemExt);
+#endif
+            frame.width = distortionFrameItemExt.frame.width;
+            frame.height = distortionFrameItemExt.frame.height;
+            frame.timestamp = distortionFrameItemExt.frame.timestamp;
+            frame.datasize = distortionFrameItemExt.frame.datasize;
+            frame.data = distortionFrameItemExt.frame.data;
+
+            if (frame.pose != null)
+            {
+                frame.pose.position.x = (float)distortionFrameItemExt.six_dof_pose.pose.x;
+                frame.pose.position.y = (float)distortionFrameItemExt.six_dof_pose.pose.y;
+                frame.pose.position.z = (float)distortionFrameItemExt.six_dof_pose.pose.z;
+                frame.pose.rotation.w = (float)distortionFrameItemExt.six_dof_pose.pose.rw;
+                frame.pose.rotation.x = (float)distortionFrameItemExt.six_dof_pose.pose.rx;
+                frame.pose.rotation.y = (float)distortionFrameItemExt.six_dof_pose.pose.ry;
+                frame.pose.rotation.z = (float)distortionFrameItemExt.six_dof_pose.pose.rz;
+            }
+            frame.status = distortionFrameItemExt.six_dof_pose.pose.confidence;
+
+            PLog.d(TAG, "AcquireVSTCameraFrame End result :" + result);
+            return result;
+        }
+
+        public static int UPxr_AcquireVSTCameraFrameAntiDistortion(int width, int height, out Frame frame)
+        {
+            PLog.d(TAG, "AcquireVSTCameraFrameAntiDistortion Start width:" + width + ", height:" + height);
+            frame = new Frame();
+            if (string.IsNullOrEmpty(token))
+            {
+                PLog.e(TAG, "Failed to obtain token, camera data cannot be obtained!");
+                return -1;
+            }
+
+            if (!camOpenned)
+            {
+                PLog.e(TAG, "Failed to obtain data due to camera not being turned on!");
+                return -1;
+            }
+
+            int size = width * height * 3;
+            InitAntiDistortionFrame(size);
+            int result = -1;
+#if PICO_PLATFORM
+            result = acquireVSTCameraFrameAntiDistortion(token, width, height, ref antiDistortionFrameItemExt);
+#endif
+            PLog.d(TAG, "AcquireVSTCameraFrameAntiDistortion End result :" + result +
+                ", width : " + antiDistortionFrameItemExt.frame.width +
+                ", height : " + antiDistortionFrameItemExt.frame.height +
+                ", datasize : " + antiDistortionFrameItemExt.frame.datasize +
+                ", data : " + antiDistortionFrameItemExt.frame.data +
+                ", confidence : " + antiDistortionFrameItemExt.six_dof_pose.pose.confidence);
+
+            frame.width = antiDistortionFrameItemExt.frame.width;
+            frame.height = antiDistortionFrameItemExt.frame.height;
+            frame.timestamp = antiDistortionFrameItemExt.frame.timestamp;
+            frame.datasize = antiDistortionFrameItemExt.frame.datasize;
+            frame.data = antiDistortionFrameItemExt.frame.data;
+
+            if (frame.pose != null)
+            {
+                frame.pose.position.x = (float)antiDistortionFrameItemExt.six_dof_pose.pose.x;
+                frame.pose.position.y = (float)antiDistortionFrameItemExt.six_dof_pose.pose.y;
+                frame.pose.position.z = (float)antiDistortionFrameItemExt.six_dof_pose.pose.z;
+                frame.pose.rotation.w = (float)antiDistortionFrameItemExt.six_dof_pose.pose.rw;
+                frame.pose.rotation.x = (float)antiDistortionFrameItemExt.six_dof_pose.pose.rx;
+                frame.pose.rotation.y = (float)antiDistortionFrameItemExt.six_dof_pose.pose.ry;
+                frame.pose.rotation.z = (float)antiDistortionFrameItemExt.six_dof_pose.pose.rz;
+            }
+            frame.status = antiDistortionFrameItemExt.six_dof_pose.pose.confidence;
+            return result;
+        }
+
+        public static UnityEngine.Pose ToUnityPose(UnityEngine.Pose poseR)
+        {
+            UnityEngine.Pose poseL;
+            poseL.position.x = poseR.position.x;
+            poseL.position.y = poseR.position.y;
+            poseL.position.z = -poseR.position.z;
+            poseL.rotation.x = poseR.rotation.x;
+            poseL.rotation.y = poseR.rotation.y;
+            poseL.rotation.z = -poseR.rotation.z;
+            poseL.rotation.w = -poseR.rotation.w;
+            return poseL;
+        }
+
+        // RGB Camera pose （Left-handed coordinate system: X right, Y up, Z out）
+        public static UnityEngine.Pose ToRGBCameraPose(RGBCameraParams cameraParams, UnityEngine.Pose headPose)
+        {
+            Vector3 headToCameraPos = new Vector3((float)cameraParams.x, (float)cameraParams.y, (float)cameraParams.z);
+            Quaternion headToCameraRot = new Quaternion((float)cameraParams.rx, (float)cameraParams.ry, (float)cameraParams.rz, (float)cameraParams.rw);
+
+            Matrix4x4 headMx = Matrix4x4.TRS(headPose.position, headPose.rotation, Vector3.one);
+            Matrix4x4 cameraMx = Matrix4x4.TRS(headToCameraPos, headToCameraRot, Vector3.one);
+            Matrix4x4 rgbMx = headMx * cameraMx;
+            Matrix4x4 rotX180 = Matrix4x4.Rotate(Quaternion.Euler(180f, 0f, 0f));
+            rgbMx *= rotX180;
+#if UNITY_2021_2_OR_NEWER
+            UnityEngine.Pose rgbCameraPose = ToUnityPose(new UnityEngine.Pose(rgbMx.GetPosition(), rgbMx.rotation));
+#else
+            UnityEngine.Pose rgbCameraPose = ToUnityPose(new UnityEngine.Pose(new Vector3(rgbMx.m03, rgbMx.m13, rgbMx.m23), rgbMx.rotation));
+#endif
+            return rgbCameraPose;
+        }
+
+        private static void InitDistortionFrame()
+        {
+            if (initDistortionFrame)
+            {
+                return;
+            }
+            distortionFrameItemExt = new FrameItemExt();
+            initDistortionFrame = true;
+        }
+
+        private static void InitAntiDistortionFrame(int size)
+        {
+            if (curSize == size)
+            {
+                return;
+            }
+            Debug.LogFormat("InitAntiDistortionFrame curSize={0}, size={1}", curSize, size);
+            antiDistortionFrameItemExt = new FrameItemExt();
+            if (antiDistortionFrameItemExt.frame.data != IntPtr.Zero)
+            {
+                Marshal.FreeHGlobal(antiDistortionFrameItemExt.frame.data);
+                antiDistortionFrameItemExt.frame.data = IntPtr.Zero;
+            }
+            antiDistortionFrameItemExt.frame.data = Marshal.AllocHGlobal(size);
+            curSize = size;
+        }
+
+        public static RGBCameraParams UPxr_GetCameraParameters()
+        {
+            PLog.d(TAG, "GetCameraParameters Start");
+            RGBCameraParams rgbCameraParams = new RGBCameraParams();
+            if (string.IsNullOrEmpty(token))
+            {
+                PLog.e(TAG, "Failed to obtain token, camera data cannot be obtained!");
+                return rgbCameraParams;
+            }
+            int result = getCameraParameters(token, out rgbCameraParams);
+            PLog.d(TAG, "GetCameraParameters End result :" + result);
+
+            return rgbCameraParams;
+        }
+
+        public static double UPxr_GetPredictedDisplayTime()
+        {
+            PLog.d(TAG, "UPxr_GetPredictedDisplayTime()");
+            double predictedDisplayTime = 0;
+#if PICO_PLATFORM
+            Pxr_GetPredictedDisplayTime(ref predictedDisplayTime);
+#endif
+            PLog.d(TAG, "UPxr_GetPredictedDisplayTime() predictedDisplayTime：" + predictedDisplayTime);
+            return predictedDisplayTime;
+        }
+
+        public static SensorState UPxr_GetPredictedMainSensorState(double predictTime)
+        {
+            SensorState sensorState = new SensorState();
+            PxrSensorState2 sensorState2 = new PxrSensorState2();
+            int sensorFrameIndex = 0;
+#if PICO_PLATFORM
+            Pxr_GetPredictedMainSensorState2(predictTime, ref sensorState2, ref sensorFrameIndex);
+#endif
+            sensorState.status = sensorState2.status == 3 ? 1 : 0;
+            sensorState.pose.position.x = sensorState2.globalPose.position.x;
+            sensorState.pose.position.y = sensorState2.globalPose.position.y;
+            sensorState.pose.position.z = sensorState2.globalPose.position.z;
+            sensorState.pose.rotation.x = sensorState2.globalPose.orientation.x;
+            sensorState.pose.rotation.y = sensorState2.globalPose.orientation.y;
+            sensorState.pose.rotation.z = sensorState2.globalPose.orientation.z;
+            sensorState.pose.rotation.w = sensorState2.globalPose.orientation.w;
+            return sensorState;
+        }
+        
+        public static int UPxr_gotoSeeThroughFloorSetting()
+        {
+            int value = -1;
+
+#if PICO_PLATFORM
+            value = IToBService.Call<int>("gotoSeeThroughFloorSetting",0);
+#endif
+            return value;
+        }
+        public static int UPxr_fileCopy(String srcPath, String dstPath, FileCopyCallback callback)
+        {
+            int value = -1;
+#if PICO_PLATFORM
+            value = tobHelper.Call<int>("FileCopy",srcPath,dstPath,callback);
+#endif
+            return value;
+        }
+        public static void UPxr_IsMapInEffect(String path, Action<int> callback)
+        {
+           
+#if PICO_PLATFORM
+            tobHelper.Call("isMapInEffect",path,new IntCallback(callback),0);
+#endif
+        }
+        public static void UPxr_ImportMapByPath(String path, Action<int> callback)
+        {
+           
+#if PICO_PLATFORM
+            tobHelper.Call("importMapByPath",path,new IntCallback(callback),0);
+#endif
         }
     }
 }
